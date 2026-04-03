@@ -12,6 +12,7 @@ import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js
 import { getAgentDescriptionsTotalTokens, AGENT_DESCRIPTIONS_THRESHOLD } from './statusNoticeHelpers.js';
 import { isSupportedJetBrainsTerminal, toIDEDisplayName, getTerminalIdeType } from './ide.js';
 import { isJetBrainsPluginInstalledCachedSync } from './jetbrains.js';
+import { tUi, getUiLanguage } from './uiLanguage.js';
 
 // Types
 export type StatusNoticeType = 'warning' | 'info';
@@ -40,10 +41,10 @@ const largeMemoryFilesNotice: StatusNoticeDefinition = {
         return <Box key={file.path} flexDirection="row">
               <Text color="warning">{figures.warning}</Text>
               <Text color="warning">
-                Large <Text bold>{displayPath}</Text> will impact performance (
-                {formatNumber(file.content.length)} chars &gt;{' '}
+                {tUi('큰 파일 ', 'Large ', getUiLanguage())}<Text bold>{displayPath}</Text>{tUi(' 이(가) 성능에 영향을 줍니다 (', ' will impact performance (', getUiLanguage())}
+                {formatNumber(file.content.length)} {tUi('문자', 'chars', getUiLanguage())} &gt;{' '}
                 {formatNumber(MAX_MEMORY_CHARACTER_COUNT)})
-                <Text dimColor> · /memory to edit</Text>
+                <Text dimColor>{tUi(' · /memory 로 수정', ' · /memory to edit', getUiLanguage())}</Text>
               </Text>
             </Box>;
       })}
@@ -62,9 +63,7 @@ const claudeAiSubscriberExternalTokenNotice: StatusNoticeDefinition = {
     return <Box flexDirection="row" marginTop={1}>
         <Text color="warning">{figures.warning}</Text>
         <Text color="warning">
-          Auth conflict: Using {authTokenInfo.source} instead of Claude account
-          subscription token. Either unset {authTokenInfo.source}, or run
-          `claude /logout`.
+          {tUi(`인증 충돌: Claude 계정 구독 토큰 대신 ${authTokenInfo.source} 를 사용 중입니다. ${authTokenInfo.source} 를 해제하거나 \`claude /logout\` 을 실행하세요.`, `Auth conflict: Using ${authTokenInfo.source} instead of Claude account subscription token. Either unset ${authTokenInfo.source}, or run \`claude /logout\`.`, getUiLanguage())}
         </Text>
       </Box>;
   }
@@ -89,8 +88,7 @@ const apiKeyConflictNotice: StatusNoticeDefinition = {
     return <Box flexDirection="row" marginTop={1}>
         <Text color="warning">{figures.warning}</Text>
         <Text color="warning">
-          Auth conflict: Using {apiKeySource} instead of Anthropic Console key.
-          Either unset {apiKeySource}, or run `claude /logout`.
+          {tUi(`인증 충돌: Anthropic Console 키 대신 ${apiKeySource} 를 사용 중입니다. ${apiKeySource} 를 해제하거나 \`claude /logout\` 을 실행하세요.`, `Auth conflict: Using ${apiKeySource} instead of Anthropic Console key. Either unset ${apiKeySource}, or run \`claude /logout\`.`, getUiLanguage())}
         </Text>
       </Box>;
   }
@@ -118,20 +116,23 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
         <Box flexDirection="row">
           <Text color="warning">{figures.warning}</Text>
           <Text color="warning">
-            Auth conflict: Both a token ({authTokenInfo.source}) and an API key
-            ({apiKeySource}) are set. This may lead to unexpected behavior.
+            {tUi(`인증 충돌: 토큰(${authTokenInfo.source})과 API 키(${apiKeySource})가 모두 설정되어 있습니다. 예상치 못한 동작이 발생할 수 있습니다.`, `Auth conflict: Both a token (${authTokenInfo.source}) and an API key (${apiKeySource}) are set. This may lead to unexpected behavior.`, getUiLanguage())}
           </Text>
         </Box>
         <Box flexDirection="column" marginLeft={3}>
           <Text color="warning">
-            · Trying to use{' '}
-            {authTokenInfo.source === 'claude.ai' ? 'claude.ai' : authTokenInfo.source}
-            ?{' '}
-            {apiKeySource === 'ANTHROPIC_API_KEY' ? 'Unset the ANTHROPIC_API_KEY environment variable, or claude /logout then say "No" to the API key approval before login.' : apiKeySource === 'apiKeyHelper' ? 'Unset the apiKeyHelper setting.' : 'claude /logout'}
+            {tUi(
+              `· ${authTokenInfo.source === 'claude.ai' ? 'claude.ai' : authTokenInfo.source} 를 쓰려면? ${apiKeySource === 'ANTHROPIC_API_KEY' ? 'ANTHROPIC_API_KEY 환경 변수를 해제하거나, claude /logout 후 로그인 전에 API key 승인에 "No"를 선택하세요.' : apiKeySource === 'apiKeyHelper' ? 'apiKeyHelper 설정을 해제하세요.' : 'claude /logout'}`,
+              `· Trying to use ${authTokenInfo.source === 'claude.ai' ? 'claude.ai' : authTokenInfo.source}? ${apiKeySource === 'ANTHROPIC_API_KEY' ? 'Unset the ANTHROPIC_API_KEY environment variable, or claude /logout then say "No" to the API key approval before login.' : apiKeySource === 'apiKeyHelper' ? 'Unset the apiKeyHelper setting.' : 'claude /logout'}`,
+              getUiLanguage(),
+            )}
           </Text>
           <Text color="warning">
-            · Trying to use {apiKeySource}?{' '}
-            {authTokenInfo.source === 'claude.ai' ? 'claude /logout to sign out of claude.ai.' : `Unset the ${authTokenInfo.source} environment variable.`}
+            {tUi(
+              `· ${apiKeySource} 를 쓰려면? ${authTokenInfo.source === 'claude.ai' ? 'claude /logout 으로 claude.ai 에서 로그아웃하세요.' : `${authTokenInfo.source} 환경 변수를 해제하세요.`}`,
+              `· Trying to use ${apiKeySource}? ${authTokenInfo.source === 'claude.ai' ? 'claude /logout to sign out of claude.ai.' : `Unset the ${authTokenInfo.source} environment variable.`}`,
+              getUiLanguage(),
+            )}
           </Text>
         </Box>
       </Box>;
@@ -149,10 +150,10 @@ const largeAgentDescriptionsNotice: StatusNoticeDefinition = {
     return <Box flexDirection="row">
         <Text color="warning">{figures.warning}</Text>
         <Text color="warning">
-          Large cumulative agent descriptions will impact performance (~
-          {formatNumber(totalTokens)} tokens &gt;{' '}
+          {tUi('큰 누적 agent description은 성능에 영향을 줍니다 (~', 'Large cumulative agent descriptions will impact performance (~', getUiLanguage())}
+          {formatNumber(totalTokens)} {tUi('토큰', 'tokens', getUiLanguage())} &gt;{' '}
           {formatNumber(AGENT_DESCRIPTIONS_THRESHOLD)})
-          <Text dimColor> · /agents to manage</Text>
+          <Text dimColor>{tUi(' · /agents 로 관리', ' · /agents to manage', getUiLanguage())}</Text>
         </Text>
       </Box>;
   }
@@ -180,8 +181,7 @@ const jetbrainsPluginNotice: StatusNoticeDefinition = {
     return <Box flexDirection="row" gap={1} marginLeft={1}>
         <Text color="ide">{figures.arrowUp}</Text>
         <Text>
-          Install the <Text color="ide">{ideName}</Text> plugin from the
-          JetBrains Marketplace:{' '}
+          {tUi('JetBrains Marketplace에서 ', 'Install the ', getUiLanguage())}<Text color="ide">{ideName}</Text>{tUi(' 플러그인을 설치하세요: ', ' plugin from the JetBrains Marketplace: ', getUiLanguage())}
           <Text bold>https://docs.claude.com/s/claude-code-jetbrains</Text>
         </Text>
       </Box>;

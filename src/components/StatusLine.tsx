@@ -25,6 +25,7 @@ import { getLastAssistantMessage } from '../utils/messages.js';
 import { getRuntimeMainLoopModel, type ModelName, renderModelName } from '../utils/model/model.js';
 import { getCurrentSessionTitle } from '../utils/sessionStorage.js';
 import { doesMostRecentAssistantMessageExceed200k, getCurrentUsage } from '../utils/tokens.js';
+import { tUi, useUiLanguage } from '../utils/uiLanguage.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
 import { isVimModeEnabled } from './PromptInput/utils.js';
 export function statusLineShouldDisplay(settings: ReadonlySettings): boolean {
@@ -149,6 +150,7 @@ function StatusLineInner({
   const {
     addNotification
   } = useNotifications();
+  const uiLanguage = useUiLanguage();
   // AppState-sourced model — same source as API requests. getMainLoopModel()
   // re-reads settings.json on every call, so another session's /model write
   // would leak into this session's statusline (anthropics/claude-code#37596).
@@ -277,7 +279,7 @@ function StatusLineInner({
       if (!checkHasTrustDialogAccepted()) {
         addNotification({
           key: 'statusline-trust-blocked',
-          text: 'statusline skipped · restart to fix',
+          text: tUi('statusline 건너뜀 · 재시작하면 해결됨', 'statusline skipped · restart to fix', uiLanguage),
           color: 'warning',
           priority: 'low'
         });

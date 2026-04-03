@@ -169,13 +169,13 @@ export function WorktreeExitDialog({
   if (status === 'keeping') {
     return <Box flexDirection="row" marginY={1}>
         <Spinner />
-        <Text>Keeping worktree…</Text>
+        <Text>worktree 유지 중…</Text>
       </Box>;
   }
   if (status === 'removing') {
     return <Box flexDirection="row" marginY={1}>
         <Spinner />
-        <Text>Removing worktree…</Text>
+        <Text>worktree 제거 중…</Text>
       </Box>;
   }
   const branchName = worktreeSession.worktreeBranch;
@@ -189,7 +189,7 @@ export function WorktreeExitDialog({
   } else if (hasCommits) {
     subtitle = `You have ${commitCount} ${commitCount === 1 ? 'commit' : 'commits'} on ${branchName}. The branch will be deleted if you remove the worktree.`;
   } else {
-    subtitle = 'You are working in a worktree. Keep it to continue working there, or remove it to clean up.';
+    subtitle = '현재 worktree에서 작업 중입니다. 계속 작업하려면 유지하고, 정리하려면 제거하세요.';
   }
   function handleCancel() {
     if (onCancel) {
@@ -200,10 +200,10 @@ export function WorktreeExitDialog({
     // Fallback: treat Escape as "keep" if no onCancel provided
     void handleSelect('keep');
   }
-  const removeDescription = hasUncommitted || hasCommits ? 'All changes and commits will be lost.' : 'Clean up the worktree directory.';
+  const removeDescription = hasUncommitted || hasCommits ? '모든 변경사항과 커밋이 사라집니다.' : 'worktree 디렉터리를 정리합니다.';
   const hasTmuxSession = Boolean(worktreeSession.tmuxSessionName);
   const options = hasTmuxSession ? [{
-    label: 'Keep worktree and tmux session',
+    label: 'worktree와 tmux 세션 유지',
     value: 'keep-with-tmux',
     description: `Stays at ${worktreeSession.worktreePath}. Reattach with: tmux attach -t ${worktreeSession.tmuxSessionName}`
   }, {

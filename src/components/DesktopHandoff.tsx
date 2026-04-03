@@ -72,12 +72,12 @@ export function DesktopHandoff(t0) {
         setState("checking");
         const installStatus = await getDesktopInstallStatus();
         if (installStatus.status === "not-installed") {
-          setDownloadMessage("Claude Desktop is not installed.");
+          setDownloadMessage("Claude Desktop이 설치되어 있지 않습니다.");
           setState("prompt-download");
           return;
         }
         if (installStatus.status === "version-too-old") {
-          setDownloadMessage(`Claude Desktop needs to be updated (found v${installStatus.version}, need v1.1.2396+).`);
+          setDownloadMessage(`Claude Desktop 업데이트가 필요합니다 (현재 v${installStatus.version}, 필요 버전 v1.1.2396+).`);
           setState("prompt-download");
           return;
         }
@@ -86,7 +86,7 @@ export function DesktopHandoff(t0) {
         setState("opening");
         const result = await openCurrentSessionInDesktop();
         if (!result.success) {
-          setError(result.error ?? "Failed to open Claude Desktop");
+          setError(result.error ?? "Claude Desktop을 열지 못했습니다.");
           setState("error");
           return;
         }
@@ -118,7 +118,7 @@ export function DesktopHandoff(t0) {
     }
     let t5;
     if ($[9] === Symbol.for("react.memo_cache_sentinel")) {
-      t5 = <Text dimColor={true}>Press any key to continue…</Text>;
+      t5 = <Text dimColor={true}>아무 키나 눌러 계속하세요…</Text>;
       $[9] = t5;
     } else {
       t5 = $[9];
@@ -144,7 +144,7 @@ export function DesktopHandoff(t0) {
     }
     let t5;
     if ($[14] === Symbol.for("react.memo_cache_sentinel")) {
-      t5 = <Text>Download now? (y/n)</Text>;
+      t5 = <Text>지금 다운로드할까요? (y/n)</Text>;
       $[14] = t5;
     } else {
       t5 = $[14];
@@ -184,7 +184,7 @@ export function DesktopHandoff(t0) {
   return t6;
 }
 async function _temp2(onDone_0) {
-  onDone_0("Session transferred to Claude Desktop", {
+  onDone_0("세션을 Claude Desktop으로 전송했습니다", {
     display: "system"
   });
   await gracefulShutdown(0, "other");

@@ -111,13 +111,13 @@ export function ThemePicker(t0) {
   let t10;
   if ($[7] === Symbol.for("react.memo_cache_sentinel")) {
     t10 = [...(feature("AUTO_THEME") ? [{
-      label: "Auto (match terminal)",
+      label: "자동 (터미널에 맞춤)",
       value: "auto" as const
     }] : []), {
-      label: "Dark mode",
+      label: "다크 모드",
       value: "dark"
     }, {
-      label: "Light mode",
+      label: "라이트 모드",
       value: "light"
     }, {
       label: "Dark mode (colorblind-friendly)",
@@ -139,7 +139,7 @@ export function ThemePicker(t0) {
   const themeOptions = t10;
   let t11;
   if ($[8] !== showIntroText) {
-    t11 = showIntroText ? <Text>Let's get started.</Text> : <Text bold={true} color="permission">Theme</Text>;
+    t11 = showIntroText ? <Text>시작해 봅시다.</Text> : <Text bold={true} color="permission">테마</Text>;
     $[8] = showIntroText;
     $[9] = t11;
   } else {

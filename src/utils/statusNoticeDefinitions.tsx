@@ -122,8 +122,8 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
         <Box flexDirection="column" marginLeft={3}>
           <Text color="warning">
             {tUi(
-              `· ${authTokenInfo.source === 'claude.ai' ? 'claude.ai' : authTokenInfo.source} 를 쓰려면? ${apiKeySource === 'ANTHROPIC_API_KEY' ? 'ANTHROPIC_API_KEY 환경 변수를 해제하거나, claude /logout 후 로그인 전에 API key 승인에 "No"를 선택하세요.' : apiKeySource === 'apiKeyHelper' ? 'apiKeyHelper 설정을 해제하세요.' : 'claude /logout'}`,
-              `· Trying to use ${authTokenInfo.source === 'claude.ai' ? 'claude.ai' : authTokenInfo.source}? ${apiKeySource === 'ANTHROPIC_API_KEY' ? 'Unset the ANTHROPIC_API_KEY environment variable, or claude /logout then say "No" to the API key approval before login.' : apiKeySource === 'apiKeyHelper' ? 'Unset the apiKeyHelper setting.' : 'claude /logout'}`,
+              `· ${authTokenInfo.source === 'claude.ai' ? 'claude.ai' : authTokenInfo.source} 를 쓰려면? ${apiKeySource === 'ANTHROPIC_API_KEY' ? 'ANTHROPIC_API_KEY 환경 변수를 해제하거나, claude /logout 후 로그인 전에 API key 승인에 "No"를 선택하세요.' : apiKeySource === 'apiKeyHelper' ? 'apiKeyHelper 설정을 해제하세요.' : 'claude /logout 을 실행하세요.'}`,
+              `· Trying to use ${authTokenInfo.source === 'claude.ai' ? 'claude.ai' : authTokenInfo.source}? ${apiKeySource === 'ANTHROPIC_API_KEY' ? 'Unset the ANTHROPIC_API_KEY environment variable, or claude /logout then say "No" to the API key approval before login.' : apiKeySource === 'apiKeyHelper' ? 'Unset the apiKeyHelper setting.' : 'Run claude /logout.'}`,
               getUiLanguage(),
             )}
           </Text>

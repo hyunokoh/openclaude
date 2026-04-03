@@ -99,36 +99,36 @@
     <div class="app">
       <aside class="sidebar">
         <h1>OpenClaude Desktop</h1>
-        <h2>Terminal wrapper GUI</h2>
+        <h2>터미널 래퍼 GUI</h2>
 
-        <label for="launchCommand">Launch command</label>
+        <label for="launchCommand">실행 명령</label>
         <input id="launchCommand" placeholder="openclaude" />
 
-        <label for="providerPreset">Provider preset</label>
+        <label for="providerPreset">Provider 프리셋</label>
         <select id="providerPreset">
           <option value="default">default</option>
           <option value="openai">openai</option>
           <option value="codex">codex</option>
         </select>
 
-        <label for="envFile">Env file</label>
+        <label for="envFile">Env 파일</label>
         <input id="envFile" placeholder="/path/to/.env.openclaude" />
 
-        <label for="extraEnv">Extra env</label>
+        <label for="extraEnv">추가 env</label>
         <textarea id="extraEnv" placeholder="OPENAI_MODEL=gpt-5.4&#10;OPENAI_BASE_URL=http://localhost:11434/v1"></textarea>
 
         <p class="muted">
           이 앱은 기존 openclaude CLI를 데스크톱 창 안에서 실행합니다.
-          채팅 UI를 새로 구현하지 않고, 최소 GUI control panel + embedded terminal 역할을 합니다.
+          채팅 UI를 새로 구현하지 않고, 최소 GUI 제어 패널 + 임베디드 터미널 역할을 합니다.
         </p>
       </aside>
 
       <main class="content">
         <div class="toolbar">
-          <button id="launchBtn">Launch</button>
-          <button id="restartBtn">Restart</button>
-          <button id="stopBtn">Stop</button>
-          <span class="status" id="status">idle</span>
+          <button id="launchBtn">실행</button>
+          <button id="restartBtn">재시작</button>
+          <button id="stopBtn">중지</button>
+          <span class="status" id="status">대기 중</span>
         </div>
         <div class="terminal" id="terminal"></div>
       </main>
@@ -166,18 +166,18 @@
 
       document.getElementById('launchBtn').addEventListener('click', async () => {
         terminalEl.textContent = ''
-        statusEl.textContent = 'running'
+        statusEl.textContent = '실행 중'
         await window.openclaudeDesktop.launch(getStore())
       })
 
       document.getElementById('restartBtn').addEventListener('click', async () => {
         terminalEl.textContent = ''
-        statusEl.textContent = 'running'
+        statusEl.textContent = '실행 중'
         await window.openclaudeDesktop.launch(getStore())
       })
 
       document.getElementById('stopBtn').addEventListener('click', async () => {
-        statusEl.textContent = 'stopped'
+        statusEl.textContent = '중지됨'
         await window.openclaudeDesktop.stop()
       })
 
@@ -189,11 +189,11 @@
 
       window.openclaudeDesktop.onTerminalData(data => appendOutput(data))
       window.openclaudeDesktop.onTerminalExit(({ code }) => {
-        statusEl.textContent = `exited (${code ?? 'unknown'})`
+        statusEl.textContent = `종료됨 (${code ?? 'unknown'})`
       })
       window.openclaudeDesktop.onTerminalError(({ message }) => {
-        statusEl.textContent = 'error'
-        appendOutput(`\n[desktop error] ${message}\n`)
+        statusEl.textContent = '오류'
+        appendOutput(`\n[desktop 오류] ${message}\n`)
       })
 
       loadInitialState()

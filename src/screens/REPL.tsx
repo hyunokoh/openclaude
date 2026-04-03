@@ -721,6 +721,27 @@ export function REPL({
   const lastMemoryStatusRef = useRef<'normal' | 'high' | 'critical'>('normal');
   const autoCompactTriggeredRef = useRef(false);
 
+  // Synchronous state machine for the query lifecycle. Replaces the
+  // error-prone dual-state pattern where isLoading (React state, async
+  // batched) and isQueryRunning (ref, sync) could desync. See QueryGuard.ts.
+  const queryGuard = React.useRef(new QueryGuard()).current;
+
+  // Subscribe to the guard — true during dispatching or running.
+  // This is the single source of truth for "is a local query in flight".
+  const isQueryActive = React.useSyncExternalStore(queryGuard.subscribe, queryGuard.getSnapshot);
+
+  // Separate loading flag for operations outside the local query guard:
+  // remote sessions (useRemoteSession / useDirectConnect) and foregrounded
+  // background tasks (useSessionBackgrounding). These don't route through
+  // onQuery / queryGuard, so they need their own spinner-visibility state.
+  // Initialize true if remote mode with initial prompt (CCR processing it).
+  const [isExternalLoading, setIsExternalLoadingRaw] = React.useState(remoteSessionConfig?.hasInitialPrompt ?? false);
+
+  // Derived: any loading source active. Read-only — no setter. Local query
+  // loading is driven by queryGuard (reserve/tryStart/end/cancelReservation),
+  // external loading by setIsExternalLoading.
+  const isLoading = isQueryActive || isExternalLoading;
+
   useEffect(() => {
     const status = memoryUsage?.status ?? 'normal';
     if (status === lastMemoryStatusRef.current) {
@@ -956,27 +977,6 @@ export function REPL({
   // do NOT go through composedOnScroll, so they don't stamp this. Ref not
   // state: no re-render on every wheel tick.
   const lastUserScrollTsRef = useRef(0);
-
-  // Synchronous state machine for the query lifecycle. Replaces the
-  // error-prone dual-state pattern where isLoading (React state, async
-  // batched) and isQueryRunning (ref, sync) could desync. See QueryGuard.ts.
-  const queryGuard = React.useRef(new QueryGuard()).current;
-
-  // Subscribe to the guard — true during dispatching or running.
-  // This is the single source of truth for "is a local query in flight".
-  const isQueryActive = React.useSyncExternalStore(queryGuard.subscribe, queryGuard.getSnapshot);
-
-  // Separate loading flag for operations outside the local query guard:
-  // remote sessions (useRemoteSession / useDirectConnect) and foregrounded
-  // background tasks (useSessionBackgrounding). These don't route through
-  // onQuery / queryGuard, so they need their own spinner-visibility state.
-  // Initialize true if remote mode with initial prompt (CCR processing it).
-  const [isExternalLoading, setIsExternalLoadingRaw] = React.useState(remoteSessionConfig?.hasInitialPrompt ?? false);
-
-  // Derived: any loading source active. Read-only — no setter. Local query
-  // loading is driven by queryGuard (reserve/tryStart/end/cancelReservation),
-  // external loading by setIsExternalLoading.
-  const isLoading = isQueryActive || isExternalLoading;
 
   // Elapsed time is computed by SpinnerWithVerb from these refs on each
   // animation frame, avoiding a useInterval that re-renders the entire REPL.

@@ -42,7 +42,7 @@ import { registerSandboxPermissionCallback } from '../hooks/useSwarmPermissionPo
 import { getTeamName, getAgentName } from '../utils/teammate.js';
 import { WorkerPendingPermission } from '../components/permissions/WorkerPendingPermission.js';
 import { injectUserMessageToTeammate, getAllInProcessTeammateTasks } from '../tasks/InProcessTeammateTask/InProcessTeammateTask.js';
-import { isLocalAgentTask, queuePendingMessage, appendMessageToLocalAgent, type LocalAgentTaskState } from '../tasks/LocalAgentTask/LocalAgentTask.js';
+import { isLocalAgentTask, queuePendingMessage, appendMessageToLocalAgent, capLocalAgentMessages, type LocalAgentTaskState } from '../tasks/LocalAgentTask/LocalAgentTask.js';
 import { registerLeaderToolUseConfirmQueue, unregisterLeaderToolUseConfirmQueue, registerLeaderSetToolPermissionContext, unregisterLeaderSetToolPermissionContext } from '../utils/swarm/leaderPermissionBridge.js';
 import { endInteractionSpan } from '../utils/telemetry/sessionTracing.js';
 import { useLogMessages } from '../hooks/useLogMessages.js';
@@ -167,6 +167,7 @@ import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js';
 import { resolveAgentTools } from '../tools/AgentTool/agentToolUtils.js';
 import { resumeAgentBackground } from '../tools/AgentTool/resumeAgent.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
+import { useMemoryUsage } from '../hooks/useMemoryUsage.js';
 import { useAppState, useSetAppState, useAppStateStore } from '../state/AppState.js';
 import type { ContentBlockParam, ImageBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs';
 import type { ProcessUserInputContext } from '../utils/processUserInput/processUserInput.js';
@@ -656,7 +657,7 @@ export function REPL({
             ...prev.tasks,
             [taskId]: {
               ...t,
-              messages: [...diskOnly, ...live],
+              messages: capLocalAgentMessages([...diskOnly, ...live]),
               diskLoaded: true
             }
           }
@@ -716,6 +717,32 @@ export function REPL({
     addNotification,
     removeNotification
   } = useNotifications();
+  const memoryUsage = useMemoryUsage();
+  const lastMemoryStatusRef = useRef<'normal' | 'high' | 'critical'>('normal');
+
+  useEffect(() => {
+    const status = memoryUsage?.status ?? 'normal';
+    if (status === lastMemoryStatusRef.current) {
+      return;
+    }
+    lastMemoryStatusRef.current = status;
+
+    if (status === 'normal') {
+      removeNotification('memory-usage');
+      return;
+    }
+
+    const heapUsedGb = ((memoryUsage?.heapUsed ?? 0) / (1024 * 1024 * 1024)).toFixed(1);
+    addNotification({
+      key: 'memory-usage',
+      text: status === 'critical'
+        ? `Critical memory usage (${heapUsedGb}GB). Compact or restart soon.`
+        : `High memory usage (${heapUsedGb}GB). Consider compacting soon.`,
+      color: status === 'critical' ? 'error' : 'warning',
+      priority: status === 'critical' ? 'immediate' : 'medium',
+      timeoutMs: status === 'critical' ? 12000 : 8000,
+    });
+  }, [addNotification, memoryUsage, removeNotification]);
 
   // eslint-disable-next-line prefer-const
   let trySuggestBgPRIntercept = SUGGEST_BG_PR_NOOP;

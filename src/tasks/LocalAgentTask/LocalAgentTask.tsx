@@ -38,6 +38,24 @@ export type AgentProgress = {
   summary?: string;
 };
 const MAX_RECENT_ACTIVITIES = 5;
+export const LOCAL_AGENT_MESSAGES_UI_CAP = 200;
+export function capLocalAgentMessages<T>(messages: readonly T[]): T[] {
+  if (messages.length <= LOCAL_AGENT_MESSAGES_UI_CAP) {
+    return [...messages];
+  }
+  return messages.slice(-LOCAL_AGENT_MESSAGES_UI_CAP);
+}
+export function appendCappedLocalAgentMessage<T>(prev: readonly T[] | undefined, item: T): T[] {
+  if (prev === undefined || prev.length === 0) {
+    return [item];
+  }
+  if (prev.length >= LOCAL_AGENT_MESSAGES_UI_CAP) {
+    const next = prev.slice(-(LOCAL_AGENT_MESSAGES_UI_CAP - 1));
+    next.push(item);
+    return next;
+  }
+  return [...prev, item];
+}
 export type ProgressTracker = {
   toolUseCount: number;
   // Track input and output separately to avoid double-counting.
@@ -175,7 +193,7 @@ export function queuePendingMessage(taskId: string, msg: string, setAppState: (f
 export function appendMessageToLocalAgent(taskId: string, message: Message, setAppState: (f: (prev: AppState) => AppState) => void): void {
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => ({
     ...task,
-    messages: [...(task.messages ?? []), message]
+    messages: appendCappedLocalAgentMessage(task.messages, message)
   }));
 }
 export function drainPendingMessages(taskId: string, getAppState: () => AppState, setAppState: (f: (prev: AppState) => AppState) => void): string[] {

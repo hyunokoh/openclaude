@@ -34,6 +34,7 @@ import {
   type ProgressTracker,
   updateAgentProgress as updateAsyncAgentProgress,
   updateProgressFromMessage,
+  appendCappedLocalAgentMessage,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { asAgentId } from '../../types/ids.js'
 import type { Message as MessageType } from '../../types/message.js'
@@ -564,7 +565,7 @@ export async function runAsyncAgentLifecycle({
           ...prev,
           tasks: {
             ...prev.tasks,
-            [taskId]: { ...t, messages: [...base, message] },
+            [taskId]: { ...t, messages: appendCappedLocalAgentMessage(base, message) },
           },
         }
       })

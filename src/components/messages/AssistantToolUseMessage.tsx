@@ -12,6 +12,7 @@ import { findToolByName, type Tool, type ToolProgressData, type Tools } from '..
 import type { ProgressMessage } from '../../types/message.js';
 import { useIsClassifierChecking } from '../../utils/classifierApprovalsHook.js';
 import { logError } from '../../utils/log.js';
+import { useUiLanguage, tUi } from '../../utils/uiLanguage.js';
 import type { buildMessageLookups } from '../../utils/messages.js';
 import { MessageResponse } from '../MessageResponse.js';
 import { useSelectedMessageBg } from '../messageActions.js';
@@ -53,6 +54,7 @@ export function AssistantToolUseMessage(t0) {
   const bg = useSelectedMessageBg();
   const pendingWorkerRequest = useAppStateMaybeOutsideOfProvider(_temp);
   const isClassifierCheckingRaw = useIsClassifierChecking(param.id);
+  const uiLanguage = useUiLanguage();
   const permissionMode = useAppStateMaybeOutsideOfProvider(_temp2);
   const hasStrippedRules = useAppStateMaybeOutsideOfProvider(_temp3);
   const isAutoClassifier = permissionMode === "auto" || permissionMode === "plan" && hasStrippedRules;
@@ -237,7 +239,7 @@ export function AssistantToolUseMessage(t0) {
   }
   let t13;
   if ($[54] !== inProgressToolCallCount || $[55] !== isAutoClassifier || $[56] !== isClassifierChecking || $[57] !== isQueued || $[58] !== isResolved || $[59] !== isTranscriptMode || $[60] !== isWaitingForPermission || $[61] !== lookups || $[62] !== param.id || $[63] !== progressMessagesForMessage || $[64] !== terminalSize || $[65] !== tool_0 || $[66] !== tools || $[67] !== verbose) {
-    t13 = !isResolved && !isQueued && (isClassifierChecking ? <MessageResponse height={1}><Text dimColor={true}>{isAutoClassifier ? "Auto classifier checking\u2026" : "Bash classifier checking\u2026"}</Text></MessageResponse> : isWaitingForPermission ? <MessageResponse height={1}><Text dimColor={true}>Waiting for permission…</Text></MessageResponse> : renderToolUseProgressMessage(tool_0, tools, lookups, param.id, progressMessagesForMessage, {
+    t13 = !isResolved && !isQueued && (isClassifierChecking ? <MessageResponse height={1}><Text dimColor={true}>{isAutoClassifier ? tUi('자동 분류기 확인 중…', 'Auto classifier checking…', uiLanguage) : tUi('Bash 분류기 확인 중…', 'Bash classifier checking…', uiLanguage)}</Text></MessageResponse> : isWaitingForPermission ? <MessageResponse height={1}><Text dimColor={true}>{tUi('권한을 기다리는 중…', 'Waiting for permission…', uiLanguage)}</Text></MessageResponse> : renderToolUseProgressMessage(tool_0, tools, lookups, param.id, progressMessagesForMessage, {
       verbose,
       inProgressToolCallCount,
       isTranscriptMode

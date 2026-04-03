@@ -22,6 +22,7 @@ import { count } from '../../utils/array.js';
 import { getSearchOrReadFromContent, getSearchReadSummaryText } from '../../utils/collapseReadSearch.js';
 import { getDisplayPath } from '../../utils/file.js';
 import { formatDuration, formatNumber } from '../../utils/format.js';
+import { formatToolUseCount, formatTokenCount, tUi, getUiLanguage } from '../../utils/uiLanguage.js';
 import { buildSubagentLookups, createAssistantMessage, EMPTY_LOOKUPS } from '../../utils/messages.js';
 import type { ModelAlias } from '../../utils/model/aliases.js';
 import { getMainLoopModel, parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js';
@@ -441,7 +442,7 @@ export function renderToolUseTag(input: Partial<{
   }
   return <>{tags}</>;
 }
-const INITIALIZING_TEXT = 'Initializing…';
+const INITIALIZING_TEXT = () => tUi('초기화 중…', 'Initializing…', getUiLanguage());
 export function renderToolUseProgressMessage(progressMessages: ProgressMessage<Progress>[], {
   tools,
   verbose,
@@ -460,7 +461,7 @@ export function renderToolUseProgressMessage(progressMessages: ProgressMessage<P
 }): React.ReactNode {
   if (!progressMessages.length) {
     return <MessageResponse height={1}>
-        <Text dimColor>{INITIALIZING_TEXT}</Text>
+        <Text dimColor>{INITIALIZING_TEXT()}</Text>
       </MessageResponse>;
   }
 
@@ -492,11 +493,11 @@ export function renderToolUseProgressMessage(progressMessages: ProgressMessage<P
       toolUseCount,
       tokens
     } = getProgressStats();
+    const uiLanguage = getUiLanguage();
     return <MessageResponse height={1}>
         <Text dimColor>
-          In progress… · <Text bold>{toolUseCount}</Text> tool{' '}
-          {toolUseCount === 1 ? 'use' : 'uses'}
-          {tokens && ` · ${formatNumber(tokens)} tokens`} ·{' '}
+          {tUi('진행 중…', 'In progress…', uiLanguage)} · <Text bold>{formatToolUseCount(toolUseCount, uiLanguage)}</Text>
+          {tokens && ` · ${formatTokenCount(formatNumber(tokens), uiLanguage)}`} ·{' '}
           <ConfigurableShortcutHint action="app:toggleTranscript" context="Global" fallback="ctrl+o" description="expand" parens />
         </Text>
       </MessageResponse>;
@@ -533,7 +534,7 @@ export function renderToolUseProgressMessage(progressMessages: ProgressMessage<P
   // initializing text so MessageResponse doesn't render a bare ⎿.
   if (displayedMessages.length === 0 && !(isTranscriptMode && prompt)) {
     return <MessageResponse height={1}>
-        <Text dimColor>{INITIALIZING_TEXT}</Text>
+        <Text dimColor>{INITIALIZING_TEXT()}</Text>
       </MessageResponse>;
   }
   const {
@@ -739,18 +740,27 @@ export function renderGroupedAgentToolUse(toolUses: Array<{
       <Box flexDirection="row">
         <ToolUseLoader shouldAnimate={shouldAnimate && anyUnresolved} isUnresolved={anyUnresolved} isError={anyError} />
         <Text>
-          {allComplete ? allAsync ? <>
-                <Text bold>{toolUses.length}</Text> background agents launched{' '}
-                <Text dimColor>
-                  <KeyboardShortcutHint shortcut="↓" action="manage" parens />
-                </Text>
-              </> : <>
-                <Text bold>{toolUses.length}</Text>{' '}
-                {commonType ? `${commonType} agents` : 'agents'} finished
-              </> : <>
-              Running <Text bold>{toolUses.length}</Text>{' '}
-              {commonType ? `${commonType} agents` : 'agents'}…
-            </>}{' '}
+          {(() => {
+          const uiLanguage = getUiLanguage();
+          if (allComplete && allAsync) {
+            return <>
+                  <Text bold>{toolUses.length}</Text> {tUi('백그라운드 에이전트 실행됨', 'background agents launched', uiLanguage)}{' '}
+                  <Text dimColor>
+                    <KeyboardShortcutHint shortcut="↓" action="manage" parens />
+                  </Text>
+                </>;
+          }
+          if (allComplete) {
+            return <>
+                  <Text bold>{toolUses.length}</Text>{' '}
+                  {commonType ? tUi(`${commonType} 에이전트 완료`, `${commonType} agents finished`, uiLanguage) : tUi('에이전트 완료', 'agents finished', uiLanguage)}
+                </>;
+          }
+          return <>
+                {tUi('실행 중', 'Running', uiLanguage)} <Text bold>{toolUses.length}</Text>{' '}
+                {commonType ? tUi(`${commonType} 에이전트`, `${commonType} agents`, uiLanguage) : tUi('에이전트', 'agents', uiLanguage)}…
+              </>;
+        })()}{' '}
         </Text>
         {!allAsync && <CtrlOToExpand />}
       </Box>

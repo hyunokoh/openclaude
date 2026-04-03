@@ -109,6 +109,51 @@ Advanced and source-build guides:
 
 ---
 
+## UI Language
+
+OpenClaude now has a separate `uiLanguage` setting for harness UI text such as progress, thinking, and status messages.
+
+- Default: `ko`
+- Available values: `ko`, `en`
+- This is separate from `language`, which still controls Claude response/voice language.
+
+Example:
+
+```json
+{
+  "uiLanguage": "en",
+  "language": "japanese"
+}
+```
+
+## Desktop App
+
+A minimal desktop wrapper is available under `desktop/`.
+
+It does not replace the CLI engine. Instead, it launches the existing `openclaude` terminal session inside an Electron window with a small control panel.
+
+Run it with:
+
+```bash
+npm install
+npm run desktop
+```
+
+Current scope:
+- Launch command editing
+- Provider preset selection
+- env file + extra env input
+- embedded terminal output view
+- restart / stop controls
+
+## VS Code Extension
+
+Want a native VS Code experience? Use the in-repo extension at `vscode-extension/openclaude-vscode` for one-command terminal launch and the `OpenClaude Terminal Black` theme.
+
+This repo also includes a workspace-ready VS Code profile in `.vscode/settings.json` that launches OpenClaude with Codex GPT-5.4 and requires web search to be available. Pair it with `.env.openclaude.example` by copying it to `.env.openclaude`.
+
+If you do not want to install the extension first, use the built-in VS Code task in `.vscode/tasks.json`: run `Tasks: Run Task` and choose `OpenClaude (GPT-5.4)`.
+
 ## What Works
 
 - Tool-driven coding workflows
@@ -143,7 +188,11 @@ For best results, use models with strong tool/function calling support.
 
 `WebFetch` works out of the box.
 
-`WebSearch` and richer JS-aware fetching work best with a Firecrawl API key:
+If you launch OpenClaude with the Codex backend (`gpt-5.4`, `codexplan`, `codexspark`, or the ChatGPT Codex base URL), `WebSearch` is enabled natively as long as Codex auth is available.
+
+`WebFetch` works but uses basic HTTP plus HTML-to-markdown conversion. That fails on JavaScript-rendered pages (React, Next.js, Vue SPAs) and sites that block plain HTTP requests.
+
+Set a [Firecrawl](https://firecrawl.dev) API key to fix both:
 
 ```bash
 export FIRECRAWL_API_KEY=your-key-here
@@ -183,6 +232,10 @@ The repo includes a VS Code extension in [`vscode-extension/openclaude-vscode`](
 ## Security
 
 If you believe you found a security issue, see [SECURITY.md](SECURITY.md).
+
+This fork now also includes:
+- Korean-first harness UI status/progress messages via `uiLanguage`
+- a minimal Electron desktop wrapper under `desktop/`
 
 ---
 

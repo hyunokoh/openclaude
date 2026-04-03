@@ -5,6 +5,8 @@
  * Addresses: https://github.com/Gitlawb/openclaude/issues/55
  */
 
+import { getUiLanguage, tUi } from '../utils/uiLanguage.js'
+
 declare const MACRO: { VERSION: string; DISPLAY_VERSION?: string }
 
 const ESC = '\x1b['
@@ -157,6 +159,7 @@ export function printStartupScreen(): void {
   if (process.env.CI || !process.stdout.isTTY) return
 
   const p = detectProvider()
+  const uiLanguage = getUiLanguage()
   const W = 62
   const out: string[] = []
 
@@ -177,7 +180,7 @@ export function printStartupScreen(): void {
   out.push('')
 
   // Tagline
-  out.push(`  ${rgb(...ACCENT)}\u2726${RESET} ${rgb(...CREAM)}Any model. Every tool. Zero limits.${RESET} ${rgb(...ACCENT)}\u2726${RESET}`)
+  out.push(`  ${rgb(...ACCENT)}\u2726${RESET} ${rgb(...CREAM)}${tUi('모든 모델. 모든 도구. 제약 없음.', 'Any model. Every tool. Zero limits.', uiLanguage)}${RESET} ${rgb(...ACCENT)}\u2726${RESET}`)
   out.push('')
 
   // Provider info box
@@ -200,9 +203,12 @@ export function printStartupScreen(): void {
   out.push(`${rgb(...BORDER)}\u2560${'\u2550'.repeat(W - 2)}\u2563${RESET}`)
 
   const sC: RGB = p.isLocal ? [130, 175, 130] : ACCENT
-  const sL = p.isLocal ? 'local' : 'cloud'
-  const sRow = ` ${rgb(...sC)}\u25cf${RESET} ${DIM}${rgb(...DIMCOL)}${sL}${RESET}    ${DIM}${rgb(...DIMCOL)}Ready \u2014 type ${RESET}${rgb(...ACCENT)}/help${RESET}${DIM}${rgb(...DIMCOL)} to begin${RESET}`
-  const sLen = ` \u25cf ${sL}    Ready \u2014 type /help to begin`.length
+  const sL = p.isLocal
+    ? tUi('로컬', 'local', uiLanguage)
+    : tUi('클라우드', 'cloud', uiLanguage)
+  const readyText = tUi('준비됨 — /help 입력으로 시작', 'Ready — type /help to begin', uiLanguage)
+  const sRow = ` ${rgb(...sC)}\u25cf${RESET} ${DIM}${rgb(...DIMCOL)}${sL}${RESET}    ${DIM}${rgb(...DIMCOL)}${readyText}${RESET}`
+  const sLen = ` \u25cf ${sL}    ${readyText}`.length
   out.push(boxRow(sRow, W, sLen))
 
   out.push(`${rgb(...BORDER)}\u255a${'\u2550'.repeat(W - 2)}\u255d${RESET}`)

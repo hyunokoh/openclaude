@@ -1,0 +1,23 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "OpenClaude (GPT-5.4)",
+      "type": "shell",
+      "command": "openclaude",
+      "options": {
+        "env": {
+          "CLAUDE_CODE_USE_OPENAI": "1",
+          "OPENAI_MODEL": "gpt-5.4"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "clear": false
+      },
+      "problemMatcher": []
+    }
+  ]
+}

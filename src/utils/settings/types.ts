@@ -646,6 +646,12 @@ export const SettingsSchema = lazySchema(() =>
         .describe(
           'Preferred language for Claude responses and voice dictation (e.g., "japanese", "spanish")',
         ),
+      uiLanguage: z
+        .enum(['ko', 'en'])
+        .optional()
+        .describe(
+          'Display language for OpenClaude UI status and progress messages. Defaults to "ko" when unset.',
+        ),
       skipWebFetchPreflight: z
         .boolean()
         .optional()

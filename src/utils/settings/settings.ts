@@ -811,7 +811,10 @@ function loadSettingsFromDisk(): SettingsWithErrors {
  */
 export function getInitialSettings(): SettingsJson {
   const { settings } = getSettingsWithErrors()
-  return settings || {}
+  return {
+    uiLanguage: 'ko',
+    ...(settings || {}),
+  }
 }
 
 /**

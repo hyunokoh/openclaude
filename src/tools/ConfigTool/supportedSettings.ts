@@ -124,6 +124,12 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
     description:
       'Preferred language for Claude responses and voice dictation (e.g., "japanese", "spanish")',
   },
+  uiLanguage: {
+    source: 'settings',
+    type: 'string',
+    description: 'Display language for OpenClaude UI status and progress messages',
+    options: ['ko', 'en'],
+  },
   teammateMode: {
     source: 'global',
     type: 'string',

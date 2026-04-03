@@ -1,10 +1,440 @@
 const vscode = require('vscode');
 const crypto = require('crypto');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { exec } = require('child_process');
 const { promisify } = require('util');
 
 const execAsync = promisify(exec);
 const OPENCLAUDE_REPO_URL = 'https://github.com/Gitlawb/openclaude';
+const OPENCLAUDE_SETUP_URL = `${OPENCLAUDE_REPO_URL}#web-search-and-fetch`;
+const DEFAULT_CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex';
+const CODEX_ALIAS_MODELS = new Set([
+  'codexplan',
+  'codexspark',
+  'gpt-5.4',
+  'gpt-5.4-mini',
+  'gpt-5.3-codex',
+  'gpt-5.3-codex-spark',
+  'gpt-5.2',
+  'gpt-5.2-codex',
+  'gpt-5.1-codex-max',
+  'gpt-5.1-codex-mini',
+]);
+
+function getPrimaryWorkspaceFolder() {
+  return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+}
+
+function resolveWorkspaceVariables(value) {
+  if (!value) {
+    return value;
+  }
+
+  const workspaceFolder = getPrimaryWorkspaceFolder();
+  const workspaceFolderBasename = workspaceFolder
+    ? path.basename(workspaceFolder)
+    : '';
+
+  return value
+    .replaceAll('${workspaceFolder}', workspaceFolder)
+    .replaceAll('${workspaceFolderBasename}', workspaceFolderBasename);
+}
+
+function resolveConfiguredPath(rawPath) {
+  const trimmed = (rawPath || '').trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const expanded =
+    trimmed.startsWith('~/') || trimmed === '~'
+      ? path.join(os.homedir(), trimmed.slice(2))
+      : resolveWorkspaceVariables(trimmed);
+
+  if (path.isAbsolute(expanded)) {
+    return expanded;
+  }
+
+  const workspaceFolder = getPrimaryWorkspaceFolder();
+  return workspaceFolder ? path.resolve(workspaceFolder, expanded) : path.resolve(expanded);
+}
+
+function parseDotEnv(content) {
+  const env = {};
+
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) {
+      continue;
+    }
+
+    const match = rawLine.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (!match) {
+      continue;
+    }
+
+    const key = match[1];
+    let value = match[2] || '';
+
+    if (value.startsWith('"') && value.endsWith('"')) {
+      value = value
+        .slice(1, -1)
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\r')
+        .replace(/\\t/g, '\t')
+        .replace(/\\"/g, '"');
+    } else if (value.startsWith("'") && value.endsWith("'")) {
+      value = value.slice(1, -1);
+    } else {
+      value = value.replace(/\s+#.*$/, '').trim();
+    }
+
+    env[key] = value;
+  }
+
+  return env;
+}
+
+function readEnvFile(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) {
+    return {};
+  }
+
+  try {
+    return parseDotEnv(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function sanitizeStringRecord(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, entryValue]) => entryValue !== null && entryValue !== undefined)
+      .map(([key, entryValue]) => [key, String(entryValue)])
+  );
+}
+
+function asTrimmedString(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+function isEnabledFlag(value) {
+  const normalized = asTrimmedString(value).toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes';
+}
+
+function decodeJwtPayload(token) {
+  const parts = token.split('.');
+  if (parts.length < 2) {
+    return undefined;
+  }
+
+  try {
+    const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    return JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
+  } catch {
+    return undefined;
+  }
+}
+
+function readNestedString(value, paths) {
+  for (const currentPath of paths) {
+    let current = value;
+    let valid = true;
+
+    for (const key of currentPath) {
+      if (!current || typeof current !== 'object' || !(key in current)) {
+        valid = false;
+        break;
+      }
+
+      current = current[key];
+    }
+
+    const resolved = asTrimmedString(current);
+    if (valid && resolved) {
+      return resolved;
+    }
+  }
+
+  return '';
+}
+
+function parseChatgptAccountId(token) {
+  if (!token) {
+    return '';
+  }
+
+  const payload = decodeJwtPayload(token);
+  return (
+    asTrimmedString(payload?.['https://api.openai.com/auth.chatgpt_account_id']) ||
+    asTrimmedString(payload?.chatgpt_account_id)
+  );
+}
+
+function resolveCodexAuthPath(env) {
+  const explicit = asTrimmedString(env.CODEX_AUTH_JSON_PATH);
+  if (explicit) {
+    return resolveConfiguredPath(explicit);
+  }
+
+  const codexHome = asTrimmedString(env.CODEX_HOME);
+  if (codexHome) {
+    return path.join(resolveConfiguredPath(codexHome), 'auth.json');
+  }
+
+  return path.join(os.homedir(), '.codex', 'auth.json');
+}
+
+function loadCodexAuthJson(authPath) {
+  if (!authPath || !fs.existsSync(authPath)) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(authPath, 'utf8'));
+    return parsed && typeof parsed === 'object' ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveCodexCredentials(env) {
+  const envApiKey = asTrimmedString(env.CODEX_API_KEY);
+  const envAccountId =
+    asTrimmedString(env.CODEX_ACCOUNT_ID) ||
+    asTrimmedString(env.CHATGPT_ACCOUNT_ID);
+
+  if (envApiKey) {
+    return {
+      apiKey: envApiKey,
+      accountId: envAccountId || parseChatgptAccountId(envApiKey),
+      source: 'env',
+    };
+  }
+
+  const authPath = resolveCodexAuthPath(env);
+  const authJson = loadCodexAuthJson(authPath);
+  if (!authJson) {
+    return {
+      apiKey: '',
+      accountId: '',
+      authPath,
+      source: 'none',
+    };
+  }
+
+  const apiKey = readNestedString(authJson, [
+    ['access_token'],
+    ['accessToken'],
+    ['tokens', 'access_token'],
+    ['tokens', 'accessToken'],
+    ['auth', 'access_token'],
+    ['auth', 'accessToken'],
+    ['token', 'access_token'],
+    ['token', 'accessToken'],
+    ['tokens', 'id_token'],
+    ['tokens', 'idToken'],
+  ]);
+  const accountId =
+    envAccountId ||
+    readNestedString(authJson, [
+      ['account_id'],
+      ['accountId'],
+      ['tokens', 'account_id'],
+      ['tokens', 'accountId'],
+      ['auth', 'account_id'],
+      ['auth', 'accountId'],
+    ]) ||
+    parseChatgptAccountId(apiKey);
+
+  return {
+    apiKey,
+    accountId,
+    authPath,
+    source: apiKey ? 'auth.json' : 'none',
+  };
+}
+
+function isCodexBaseUrl(baseUrl) {
+  if (!baseUrl) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(baseUrl);
+    const codexBaseUrl = new URL(DEFAULT_CODEX_BASE_URL);
+    return (
+      parsed.hostname === codexBaseUrl.hostname &&
+      parsed.pathname.replace(/\/+$/, '') === codexBaseUrl.pathname
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isCodexModel(model, baseUrl) {
+  const normalizedModel = asTrimmedString(model).split('?', 1)[0].toLowerCase();
+  return CODEX_ALIAS_MODELS.has(normalizedModel) || isCodexBaseUrl(baseUrl);
+}
+
+function getProviderLabel(providerPreset, env) {
+  if (providerPreset === 'codex' || isCodexModel(env.OPENAI_MODEL, env.OPENAI_BASE_URL)) {
+    return 'codex';
+  }
+
+  if (providerPreset === 'openai' || isEnabledFlag(env.CLAUDE_CODE_USE_OPENAI)) {
+    return 'openai-compatible';
+  }
+
+  return 'default';
+}
+
+function getWebSearchMode(env, codexCredentials) {
+  if (asTrimmedString(env.FIRECRAWL_API_KEY)) {
+    return 'firecrawl';
+  }
+
+  if (
+    isCodexModel(env.OPENAI_MODEL, env.OPENAI_BASE_URL) &&
+    codexCredentials.apiKey &&
+    codexCredentials.accountId
+  ) {
+    return 'codex';
+  }
+
+  return 'disabled';
+}
+
+function buildLaunchProfile() {
+  const configured = vscode.workspace.getConfiguration('openclaude');
+  const providerPreset = configured.get('providerPreset', 'default');
+  const launchCommand = configured.get('launchCommand', 'openclaude');
+  const terminalName = configured.get('terminalName', 'OpenClaude');
+  const shimEnabled = configured.get('useOpenAIShim', false);
+  const envFileSetting = configured.get('envFile', '');
+  const envFilePath = resolveConfiguredPath(envFileSetting);
+  const envFromFile = readEnvFile(envFilePath);
+  const extraEnv = sanitizeStringRecord(configured.get('extraEnv', {}));
+
+  const envOverrides = {
+    ...envFromFile,
+    ...extraEnv,
+  };
+
+  if (shimEnabled || providerPreset !== 'default') {
+    envOverrides.CLAUDE_CODE_USE_OPENAI = '1';
+  }
+
+  if (providerPreset === 'codex' && !asTrimmedString(envOverrides.OPENAI_MODEL)) {
+    envOverrides.OPENAI_MODEL = 'gpt-5.4';
+  }
+
+  const model = asTrimmedString(configured.get('model', ''));
+  const baseUrl = asTrimmedString(configured.get('baseUrl', ''));
+  const firecrawlApiKey = asTrimmedString(configured.get('firecrawlApiKey', ''));
+  const codexApiKey = asTrimmedString(configured.get('codexApiKey', ''));
+  const chatgptAccountId = asTrimmedString(configured.get('chatgptAccountId', ''));
+  const codexAuthJsonPath = resolveConfiguredPath(
+    asTrimmedString(configured.get('codexAuthJsonPath', ''))
+  );
+
+  if (model) {
+    envOverrides.OPENAI_MODEL = model;
+  }
+  if (baseUrl) {
+    envOverrides.OPENAI_BASE_URL = baseUrl;
+  }
+  if (firecrawlApiKey) {
+    envOverrides.FIRECRAWL_API_KEY = firecrawlApiKey;
+  }
+  if (codexApiKey) {
+    envOverrides.CODEX_API_KEY = codexApiKey;
+  }
+  if (chatgptAccountId) {
+    envOverrides.CHATGPT_ACCOUNT_ID = chatgptAccountId;
+  }
+  if (codexAuthJsonPath) {
+    envOverrides.CODEX_AUTH_JSON_PATH = codexAuthJsonPath;
+  }
+
+  const effectiveEnv = {
+    ...process.env,
+    ...envOverrides,
+  };
+  const codexCredentials = resolveCodexCredentials(effectiveEnv);
+  const webSearchMode = getWebSearchMode(effectiveEnv, codexCredentials);
+
+  return {
+    configured,
+    launchCommand,
+    terminalName,
+    envOverrides,
+    effectiveEnv,
+    providerPreset,
+    shimEnabled,
+    model: asTrimmedString(effectiveEnv.OPENAI_MODEL) || 'default',
+    envFilePath,
+    codexCredentials,
+    webSearchMode,
+  };
+}
+
+async function showLaunchError(message) {
+  const action = await vscode.window.showErrorMessage(
+    message,
+    'Open Settings',
+    'Open Setup Guide'
+  );
+
+  if (action === 'Open Settings') {
+    await vscode.commands.executeCommand(
+      'workbench.action.openSettings',
+      '@ext:devnull-bootloader.openclaude'
+    );
+  } else if (action === 'Open Setup Guide') {
+    await vscode.env.openExternal(vscode.Uri.parse(OPENCLAUDE_SETUP_URL));
+  }
+}
+
+async function validateLaunchProfile(launchProfile) {
+  const requireWebSearch = launchProfile.configured.get('requireWebSearch', false);
+  const usesCodex = isCodexModel(
+    launchProfile.effectiveEnv.OPENAI_MODEL,
+    launchProfile.effectiveEnv.OPENAI_BASE_URL
+  );
+
+  if (usesCodex && !launchProfile.codexCredentials.apiKey) {
+    await showLaunchError(
+      'OpenClaude Codex launch needs CODEX_API_KEY or a valid ~/.codex/auth.json.'
+    );
+    return false;
+  }
+
+  if (usesCodex && !launchProfile.codexCredentials.accountId) {
+    await showLaunchError(
+      'OpenClaude Codex launch needs CHATGPT_ACCOUNT_ID or an auth.json with chatgpt_account_id.'
+    );
+    return false;
+  }
+
+  if (requireWebSearch && launchProfile.webSearchMode === 'disabled') {
+    await showLaunchError(
+      'Web search is required for this workspace, but it is unavailable. Use Codex with valid auth or set FIRECRAWL_API_KEY.'
+    );
+    return false;
+  }
+
+  return true;
+}
 
 async function isCommandAvailable(command) {
   try {
@@ -29,10 +459,8 @@ function getExecutableFromCommand(command) {
 }
 
 async function launchOpenClaude() {
-  const configured = vscode.workspace.getConfiguration('openclaude');
-  const launchCommand = configured.get('launchCommand', 'openclaude');
-  const terminalName = configured.get('terminalName', 'OpenClaude');
-  const shimEnabled = configured.get('useOpenAIShim', false);
+  const launchProfile = buildLaunchProfile();
+  const { launchCommand, terminalName } = launchProfile;
   const executable = getExecutableFromCommand(launchCommand);
   const installed = await isCommandAvailable(executable);
 
@@ -49,14 +477,14 @@ async function launchOpenClaude() {
     return;
   }
 
-  const env = {};
-  if (shimEnabled) {
-    env.CLAUDE_CODE_USE_OPENAI = '1';
+  const isValid = await validateLaunchProfile(launchProfile);
+  if (!isValid) {
+    return;
   }
 
   const terminal = vscode.window.createTerminal({
     name: terminalName,
-    env,
+    env: launchProfile.envOverrides,
   });
 
   terminal.show(true);
@@ -66,11 +494,11 @@ async function launchOpenClaude() {
 class OpenClaudeControlCenterProvider {
   async resolveWebviewView(webviewView) {
     webviewView.webview.options = { enableScripts: true };
-    const configured = vscode.workspace.getConfiguration('openclaude');
-    const launchCommand = configured.get('launchCommand', 'openclaude');
+    const launchProfile = buildLaunchProfile();
+    const { launchCommand, shimEnabled, providerPreset, model, webSearchMode, envFilePath } =
+      launchProfile;
     const executable = getExecutableFromCommand(launchCommand);
     const installed = await isCommandAvailable(executable);
-    const shimEnabled = configured.get('useOpenAIShim', false);
     const shortcut = process.platform === 'darwin' ? 'Cmd+Shift+P' : 'Ctrl+Shift+P';
 
     webviewView.webview.html = this.getHtml(webviewView.webview, {
@@ -78,6 +506,10 @@ class OpenClaudeControlCenterProvider {
       shimEnabled,
       shortcut,
       executable,
+      providerLabel: getProviderLabel(providerPreset, launchProfile.effectiveEnv),
+      modelLabel: model,
+      searchLabel: webSearchMode === 'disabled' ? 'disabled' : webSearchMode,
+      envFileLabel: envFilePath || 'inherit shell env',
     });
 
     webviewView.webview.onDidReceiveMessage(async (message) => {
@@ -278,6 +710,10 @@ class OpenClaudeControlCenterProvider {
         <div class="terminal-row"><span class="prompt">$</span> openclaude --status</div>
         <div class="terminal-row">runtime: ${runtimeLabel}</div>
         <div class="terminal-row">shim: ${shimLabel}</div>
+        <div class="terminal-row">provider: ${status.providerLabel}</div>
+        <div class="terminal-row">model: ${status.modelLabel}</div>
+        <div class="terminal-row">search: ${status.searchLabel}</div>
+        <div class="terminal-row">env: ${status.envFileLabel}</div>
         <div class="terminal-row">command: ${status.executable}</div>
         <div class="terminal-row"><span class="prompt">$</span> <span class="cursor">awaiting command</span></div>
       </div>

@@ -72,6 +72,65 @@
           "type": "boolean",
           "default": false,
           "description": "Optionally set CLAUDE_CODE_USE_OPENAI=1 in launched OpenClaude terminals."
+        },
+        "openclaude.providerPreset": {
+          "type": "string",
+          "enum": [
+            "default",
+            "openai",
+            "codex"
+          ],
+          "default": "default",
+          "description": "Optional launch preset. Use \"codex\" to start OpenClaude with the Codex backend and GPT-5.4 defaults."
+        },
+        "openclaude.model": {
+          "type": "string",
+          "default": "",
+          "description": "Optional OPENAI_MODEL override for launched OpenClaude terminals, for example gpt-5.4 or codexplan."
+        },
+        "openclaude.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Optional OPENAI_BASE_URL override for launched OpenClaude terminals."
+        },
+        "openclaude.envFile": {
+          "type": "string",
+          "default": "",
+          "description": "Optional env file loaded before launch. Supports ${workspaceFolder} and ~/. Example: ${workspaceFolder}/.env.openclaude"
+        },
+        "openclaude.firecrawlApiKey": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Optional FIRECRAWL_API_KEY override to enable WebSearch/WebFetch outside native Codex search."
+        },
+        "openclaude.codexApiKey": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Optional CODEX_API_KEY override for Codex launches. Prefer using ~/.codex/auth.json when available."
+        },
+        "openclaude.chatgptAccountId": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Optional CHATGPT_ACCOUNT_ID override for Codex launches."
+        },
+        "openclaude.codexAuthJsonPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Optional path to a Codex auth.json file. Supports ${workspaceFolder} and ~/."
+        },
+        "openclaude.extraEnv": {
+          "type": "object",
+          "default": {},
+          "description": "Additional environment variables injected into launched OpenClaude terminals."
+        },
+        "openclaude.requireWebSearch": {
+          "type": "boolean",
+          "default": false,
+          "description": "Fail launch early when neither Codex native web search nor FIRECRAWL_API_KEY is available."
         }
       }
     },

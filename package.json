@@ -8,12 +8,15 @@
   },
   "files": [
     "bin/",
+    "desktop/",
     "dist/cli.mjs",
     "README.md"
   ],
   "scripts": {
     "build": "bun run scripts/build.ts",
     "dev": "bun run build && node dist/cli.mjs",
+    "desktop": "electron ./desktop/main.cjs",
+    "desktop:dev": "electron ./desktop/main.cjs",
     "dev:profile": "bun run scripts/provider-launch.ts",
     "dev:profile:fast": "bun run scripts/provider-launch.ts auto --fast --bare",
     "dev:codex": "bun run scripts/provider-launch.ts codex",

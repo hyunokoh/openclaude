@@ -17,6 +17,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js';
 import { getDisplayPath } from '../../utils/file.js';
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js';
 import type { ThemeName } from '../../utils/theme.js';
+import { getUiLanguage, tUi } from '../../utils/uiLanguage.js';
 import type { BashProgress, BashToolInput, Out } from './BashTool.js';
 import BashToolResultMessage from './BashToolResultMessage.js';
 import { extractBashCommentLabel } from './commentLabel.js';
@@ -145,7 +146,7 @@ export function renderToolUseProgressMessage(progressMessagesForMessage: Progres
   const lastProgress = progressMessagesForMessage.at(-1);
   if (!lastProgress || !lastProgress.data) {
     return <MessageResponse height={1}>
-        <Text dimColor>Running…</Text>
+        <Text dimColor>{tUi('실행 중…', 'Running…', getUiLanguage())}</Text>
       </MessageResponse>;
   }
   const data = lastProgress.data;
@@ -153,7 +154,7 @@ export function renderToolUseProgressMessage(progressMessagesForMessage: Progres
 }
 export function renderToolUseQueuedMessage(): React.ReactNode {
   return <MessageResponse height={1}>
-      <Text dimColor>Waiting…</Text>
+      <Text dimColor>{tUi('대기 중…', 'Waiting…', getUiLanguage())}</Text>
     </MessageResponse>;
 }
 export function renderToolResultMessage(content: Out, progressMessagesForMessage: ProgressMessage<BashProgress>[], {

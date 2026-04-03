@@ -24,6 +24,15 @@ import type {
 import { getDisplayPath } from './file.js'
 import { isFullscreenEnvEnabled } from './fullscreen.js'
 import {
+  formatDirectoryCount,
+  formatFileCount,
+  formatMemoryCount,
+  formatPatternCount,
+  formatTimeCount,
+  getUiLanguage,
+  tUi,
+} from './uiLanguage.js'
+import {
   isAutoManagedMemoryFile,
   isAutoManagedMemoryPattern,
   isMemoryDirectory,
@@ -974,43 +983,62 @@ export function getSearchReadSummaryText(
   listCount: number = 0,
 ): string {
   const parts: string[] = []
+  const uiLanguage = getUiLanguage()
 
   // Memory operations first
   if (memoryCounts) {
     const { memorySearchCount, memoryReadCount, memoryWriteCount } =
       memoryCounts
     if (memoryReadCount > 0) {
-      const verb = isActive
-        ? parts.length === 0
-          ? 'Recalling'
-          : 'recalling'
-        : parts.length === 0
-          ? 'Recalled'
-          : 'recalled'
+      const verb = tUi(
+        isActive ? '메모리 불러오는 중' : '메모리 불러옴',
+        isActive
+          ? parts.length === 0
+            ? 'Recalling'
+            : 'recalling'
+          : parts.length === 0
+            ? 'Recalled'
+            : 'recalled',
+        uiLanguage,
+      )
       parts.push(
-        `${verb} ${memoryReadCount} ${memoryReadCount === 1 ? 'memory' : 'memories'}`,
+        uiLanguage === 'en'
+          ? `${verb} ${formatMemoryCount(memoryReadCount, uiLanguage)}`
+          : `${verb} ${formatMemoryCount(memoryReadCount, uiLanguage)}`,
       )
     }
     if (memorySearchCount > 0) {
-      const verb = isActive
-        ? parts.length === 0
-          ? 'Searching'
-          : 'searching'
-        : parts.length === 0
-          ? 'Searched'
-          : 'searched'
-      parts.push(`${verb} memories`)
+      const verb = tUi(
+        isActive ? '메모리 검색 중' : '메모리 검색함',
+        isActive
+          ? parts.length === 0
+            ? 'Searching'
+            : 'searching'
+          : parts.length === 0
+            ? 'Searched'
+            : 'searched',
+        uiLanguage,
+      )
+      parts.push(
+        uiLanguage === 'en' ? `${verb} memories` : verb,
+      )
     }
     if (memoryWriteCount > 0) {
-      const verb = isActive
-        ? parts.length === 0
-          ? 'Writing'
-          : 'writing'
-        : parts.length === 0
-          ? 'Wrote'
-          : 'wrote'
+      const verb = tUi(
+        isActive ? '메모리 기록 중' : '메모리 기록함',
+        isActive
+          ? parts.length === 0
+            ? 'Writing'
+            : 'writing'
+          : parts.length === 0
+            ? 'Wrote'
+            : 'wrote',
+        uiLanguage,
+      )
       parts.push(
-        `${verb} ${memoryWriteCount} ${memoryWriteCount === 1 ? 'memory' : 'memories'}`,
+        uiLanguage === 'en'
+          ? `${verb} ${formatMemoryCount(memoryWriteCount, uiLanguage)}`
+          : `${verb} ${formatMemoryCount(memoryWriteCount, uiLanguage)}`,
       )
     }
     // Team memory operations
@@ -1020,45 +1048,73 @@ export function getSearchReadSummaryText(
   }
 
   if (searchCount > 0) {
-    const searchVerb = isActive
-      ? parts.length === 0
-        ? 'Searching for'
-        : 'searching for'
-      : parts.length === 0
-        ? 'Searched for'
-        : 'searched for'
+    const searchVerb = tUi(
+      isActive ? '패턴 검색 중' : '패턴 검색함',
+      isActive
+        ? parts.length === 0
+          ? 'Searching for'
+          : 'searching for'
+        : parts.length === 0
+          ? 'Searched for'
+          : 'searched for',
+      uiLanguage,
+    )
     parts.push(
-      `${searchVerb} ${searchCount} ${searchCount === 1 ? 'pattern' : 'patterns'}`,
+      uiLanguage === 'en'
+        ? `${searchVerb} ${formatPatternCount(searchCount, uiLanguage)}`
+        : `${searchVerb} ${formatPatternCount(searchCount, uiLanguage)}`,
     )
   }
 
   if (readCount > 0) {
-    const readVerb = isActive
-      ? parts.length === 0
-        ? 'Reading'
-        : 'reading'
-      : parts.length === 0
-        ? 'Read'
-        : 'read'
-    parts.push(`${readVerb} ${readCount} ${readCount === 1 ? 'file' : 'files'}`)
+    const readVerb = tUi(
+      isActive ? '파일 읽는 중' : '파일 읽음',
+      isActive
+        ? parts.length === 0
+          ? 'Reading'
+          : 'reading'
+        : parts.length === 0
+          ? 'Read'
+          : 'read',
+      uiLanguage,
+    )
+    parts.push(
+      uiLanguage === 'en'
+        ? `${readVerb} ${formatFileCount(readCount, uiLanguage)}`
+        : `${readVerb} ${formatFileCount(readCount, uiLanguage)}`,
+    )
   }
 
   if (listCount > 0) {
-    const listVerb = isActive
-      ? parts.length === 0
-        ? 'Listing'
-        : 'listing'
-      : parts.length === 0
-        ? 'Listed'
-        : 'listed'
+    const listVerb = tUi(
+      isActive ? '디렉터리 나열 중' : '디렉터리 나열함',
+      isActive
+        ? parts.length === 0
+          ? 'Listing'
+          : 'listing'
+        : parts.length === 0
+          ? 'Listed'
+          : 'listed',
+      uiLanguage,
+    )
     parts.push(
-      `${listVerb} ${listCount} ${listCount === 1 ? 'directory' : 'directories'}`,
+      uiLanguage === 'en'
+        ? `${listVerb} ${formatDirectoryCount(listCount, uiLanguage)}`
+        : `${listVerb} ${formatDirectoryCount(listCount, uiLanguage)}`,
     )
   }
 
   if (replCount > 0) {
-    const replVerb = isActive ? "REPL'ing" : "REPL'd"
-    parts.push(`${replVerb} ${replCount} ${replCount === 1 ? 'time' : 'times'}`)
+    const replVerb = tUi(
+      isActive ? 'REPL 실행 중' : 'REPL 실행함',
+      isActive ? "REPL'ing" : "REPL'd",
+      uiLanguage,
+    )
+    parts.push(
+      uiLanguage === 'en'
+        ? `${replVerb} ${formatTimeCount(replCount, uiLanguage)}`
+        : `${replVerb} ${formatTimeCount(replCount, uiLanguage)}`,
+    )
   }
 
   const text = parts.join(', ')

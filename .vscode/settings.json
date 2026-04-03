@@ -1,0 +1,9 @@
+{
+  "openclaude.launchCommand": "openclaude",
+  "openclaude.terminalName": "OpenClaude (GPT-5.4)",
+  "openclaude.useOpenAIShim": true,
+  "openclaude.providerPreset": "codex",
+  "openclaude.model": "gpt-5.4",
+  "openclaude.requireWebSearch": true,
+  "openclaude.envFile": "${workspaceFolder}/.env.openclaude"
+}

@@ -4,5 +4,6 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.openclaude.example
 .openclaude-profile.json
 reports/

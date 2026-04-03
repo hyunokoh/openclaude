@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenClaude Desktop</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      body {
+        margin: 0;
+        background: #111;
+        color: #eee;
+      }
+      .app {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        height: 100vh;
+      }
+      .sidebar {
+        border-right: 1px solid #2a2a2a;
+        padding: 20px;
+        overflow: auto;
+        background: #161616;
+      }
+      .content {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid #2a2a2a;
+        background: #181818;
+      }
+      .terminal {
+        flex: 1;
+        padding: 16px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        margin: 14px 0 6px;
+        color: #c6c6c6;
+      }
+      input, select, textarea, button {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #333;
+        background: #202020;
+        color: #f5f5f5;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font: inherit;
+      }
+      textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+      button {
+        width: auto;
+        cursor: pointer;
+      }
+      .toolbar button {
+        min-width: 84px;
+      }
+      .muted {
+        color: #999;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 6px;
+      }
+      h2 {
+        font-size: 14px;
+        margin: 0;
+        color: #bbb;
+        font-weight: 500;
+      }
+      .status {
+        margin-left: auto;
+        font-size: 12px;
+        color: #aaa;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <h1>OpenClaude Desktop</h1>
+        <h2>Terminal wrapper GUI</h2>
+
+        <label for="launchCommand">Launch command</label>
+        <input id="launchCommand" placeholder="openclaude" />
+
+        <label for="providerPreset">Provider preset</label>
+        <select id="providerPreset">
+          <option value="default">default</option>
+          <option value="openai">openai</option>
+          <option value="codex">codex</option>
+        </select>
+
+        <label for="envFile">Env file</label>
+        <input id="envFile" placeholder="/path/to/.env.openclaude" />
+
+        <label for="extraEnv">Extra env</label>
+        <textarea id="extraEnv" placeholder="OPENAI_MODEL=gpt-5.4&#10;OPENAI_BASE_URL=http://localhost:11434/v1"></textarea>
+
+        <p class="muted">
+          이 앱은 기존 openclaude CLI를 데스크톱 창 안에서 실행합니다.
+          채팅 UI를 새로 구현하지 않고, 최소 GUI control panel + embedded terminal 역할을 합니다.
+        </p>
+      </aside>
+
+      <main class="content">
+        <div class="toolbar">
+          <button id="launchBtn">Launch</button>
+          <button id="restartBtn">Restart</button>
+          <button id="stopBtn">Stop</button>
+          <span class="status" id="status">idle</span>
+        </div>
+        <div class="terminal" id="terminal"></div>
+      </main>
+    </div>
+
+    <script>
+      const launchCommandEl = document.getElementById('launchCommand')
+      const providerPresetEl = document.getElementById('providerPreset')
+      const envFileEl = document.getElementById('envFile')
+      const extraEnvEl = document.getElementById('extraEnv')
+      const terminalEl = document.getElementById('terminal')
+      const statusEl = document.getElementById('status')
+
+      function getStore() {
+        return {
+          launchCommand: launchCommandEl.value.trim() || 'openclaude',
+          providerPreset: providerPresetEl.value,
+          envFile: envFileEl.value.trim(),
+          extraEnv: extraEnvEl.value,
+        }
+      }
+
+      function appendOutput(text) {
+        terminalEl.textContent += text
+        terminalEl.scrollTop = terminalEl.scrollHeight
+      }
+
+      async function loadInitialState() {
+        const store = await window.openclaudeDesktop.getStore()
+        launchCommandEl.value = store.launchCommand || 'openclaude'
+        providerPresetEl.value = store.providerPreset || 'default'
+        envFileEl.value = store.envFile || ''
+        extraEnvEl.value = store.extraEnv || ''
+      }
+
+      document.getElementById('launchBtn').addEventListener('click', async () => {
+        terminalEl.textContent = ''
+        statusEl.textContent = 'running'
+        await window.openclaudeDesktop.launch(getStore())
+      })
+
+      document.getElementById('restartBtn').addEventListener('click', async () => {
+        terminalEl.textContent = ''
+        statusEl.textContent = 'running'
+        await window.openclaudeDesktop.launch(getStore())
+      })
+
+      document.getElementById('stopBtn').addEventListener('click', async () => {
+        statusEl.textContent = 'stopped'
+        await window.openclaudeDesktop.stop()
+      })
+
+      ;['launchCommand', 'providerPreset', 'envFile', 'extraEnv'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => {
+          window.openclaudeDesktop.saveStore(getStore())
+        })
+      })
+
+      window.openclaudeDesktop.onTerminalData(data => appendOutput(data))
+      window.openclaudeDesktop.onTerminalExit(({ code }) => {
+        statusEl.textContent = `exited (${code ?? 'unknown'})`
+      })
+      window.openclaudeDesktop.onTerminalError(({ message }) => {
+        statusEl.textContent = 'error'
+        appendOutput(`\n[desktop error] ${message}\n`)
+      })
+
+      loadInitialState()
+    </script>
+  </body>
+</html>

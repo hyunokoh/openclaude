@@ -11,6 +11,7 @@ import type { Tool } from '../../Tool.js';
 import type { ProgressMessage } from '../../types/message.js';
 import type { PowerShellProgress } from '../../types/tools.js';
 import type { ThemeName } from '../../utils/theme.js';
+import { getUiLanguage, tUi } from '../../utils/uiLanguage.js';
 import type { Out, PowerShellToolInput } from './PowerShellTool.js';
 
 // Constants for command display
@@ -64,7 +65,7 @@ export function renderToolUseProgressMessage(progressMessagesForMessage: Progres
   const lastProgress = progressMessagesForMessage.at(-1);
   if (!lastProgress || !lastProgress.data) {
     return <MessageResponse height={1}>
-        <Text dimColor>Running…</Text>
+        <Text dimColor>{tUi('실행 중…', 'Running…', getUiLanguage())}</Text>
       </MessageResponse>;
   }
   const data = lastProgress.data;
@@ -72,7 +73,7 @@ export function renderToolUseProgressMessage(progressMessagesForMessage: Progres
 }
 export function renderToolUseQueuedMessage(): React.ReactNode {
   return <MessageResponse height={1}>
-      <Text dimColor>Waiting…</Text>
+      <Text dimColor>{tUi('대기 중…', 'Waiting…', getUiLanguage())}</Text>
     </MessageResponse>;
 }
 export function renderToolResultMessage(content: Out, progressMessagesForMessage: ProgressMessage<PowerShellProgress>[], {

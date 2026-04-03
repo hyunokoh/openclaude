@@ -81,7 +81,7 @@ type Setting = (SettingBase & {
   onChange(value: string): void;
   type: 'managedEnum';
 });
-type SubMenu = 'Theme' | 'Model' | 'TeammateModel' | 'ExternalIncludes' | 'OutputStyle' | 'ChannelDowngrade' | 'Language' | 'EnableAutoUpdates';
+type SubMenu = 'Theme' | 'Model' | 'TeammateModel' | 'ExternalIncludes' | 'OutputStyle' | 'ChannelDowngrade' | 'Language' | 'UiLanguage' | 'EnableAutoUpdates';
 export function Config({
   onClose,
   context,
@@ -104,6 +104,8 @@ export function Config({
   const initialOutputStyle = React.useRef(currentOutputStyle);
   const [currentLanguage, setCurrentLanguage] = useState<string | undefined>(settingsData?.language);
   const initialLanguage = React.useRef(currentLanguage);
+  const [currentUiLanguage, setCurrentUiLanguage] = useState<'ko' | 'en'>(settingsData?.uiLanguage === 'en' ? 'en' : 'ko');
+  const initialUiLanguage = React.useRef(currentUiLanguage);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollOffset, setScrollOffset] = useState(0);
   const [isSearchMode, setIsSearchMode] = useState(true);
@@ -766,6 +768,12 @@ export function Config({
     type: 'managedEnum' as const,
     onChange: () => {} // handled by LanguagePicker submenu
   }, {
+    id: 'uiLanguage',
+    label: 'UI language',
+    value: currentUiLanguage === 'ko' ? '한국어' : 'English',
+    type: 'managedEnum' as const,
+    onChange: () => {} // handled by UI language submenu
+  }, {
     id: 'editorMode',
     label: 'Editor mode',
     // Convert 'emacs' to 'normal' for backward compatibility
@@ -1124,6 +1132,9 @@ export function Config({
     if (currentLanguage !== initialLanguage.current) {
       formattedChanges.push(`Set response language to ${chalk.bold(currentLanguage ?? 'Default (English)')}`);
     }
+    if (currentUiLanguage !== initialUiLanguage.current) {
+      formattedChanges.push(`Set UI language to ${chalk.bold(currentUiLanguage)}`);
+    }
     if (globalConfig.editorMode !== initialConfig.current.editorMode) {
       formattedChanges.push(`Set editor mode to ${chalk.bold(globalConfig.editorMode || 'emacs')}`);
     }
@@ -1171,7 +1182,7 @@ export function Config({
         display: 'system'
       });
     }
-  }, [showSubmenu, changes, globalConfig, mainLoopModel, currentOutputStyle, currentLanguage, settingsData?.autoUpdatesChannel, isFastModeEnabled() ? (settingsData as Record<string, unknown> | undefined)?.fastMode : undefined, onClose]);
+  }, [showSubmenu, changes, globalConfig, mainLoopModel, currentOutputStyle, currentLanguage, currentUiLanguage, settingsData?.autoUpdatesChannel, isFastModeEnabled() ? (settingsData as Record<string, unknown> | undefined)?.fastMode : undefined, onClose]);
 
   // Restore all state stores to their mount-time snapshots. Changes are
   // applied to disk/AppState immediately on toggle, so "cancel" means
@@ -1204,6 +1215,7 @@ export function Config({
       autoUpdatesChannel: iu?.autoUpdatesChannel,
       minimumVersion: iu?.minimumVersion,
       language: iu?.language,
+      uiLanguage: iu?.uiLanguage,
       ...(feature('TRANSCRIPT_CLASSIFIER') ? {
         useAutoModeDuringPlan: (iu as {
           useAutoModeDuringPlan?: boolean;
@@ -1297,7 +1309,7 @@ export function Config({
       }
       return;
     }
-    if (setting_0.id === 'theme' || setting_0.id === 'model' || setting_0.id === 'teammateDefaultModel' || setting_0.id === 'showExternalIncludesDialog' || setting_0.id === 'outputStyle' || setting_0.id === 'language') {
+    if (setting_0.id === 'theme' || setting_0.id === 'model' || setting_0.id === 'teammateDefaultModel' || setting_0.id === 'showExternalIncludesDialog' || setting_0.id === 'outputStyle' || setting_0.id === 'language' || setting_0.id === 'uiLanguage') {
       // managedEnum items open a submenu — isDirty is set by the submenu's
       // completion callback, not here (submenu may be cancelled).
       switch (setting_0.id) {
@@ -1323,6 +1335,10 @@ export function Config({
           return;
         case 'language':
           setShowSubmenu('Language');
+          setTabsHidden(true);
+          return;
+        case 'uiLanguage':
+          setShowSubmenu('UiLanguage');
           setTabsHidden(true);
           return;
       }
@@ -1573,6 +1589,33 @@ export function Config({
       }} onCancel={() => {
         setShowSubmenu(null);
         setTabsHidden(false);
+      }} />
+          <Text dimColor>
+            <Byline>
+              <KeyboardShortcutHint shortcut="Enter" action="confirm" />
+              <ConfigurableShortcutHint action="confirm:no" context="Settings" fallback="Esc" description="cancel" />
+            </Byline>
+          </Text>
+        </> : showSubmenu === 'UiLanguage' ? <>
+          <Select options={[{
+        label: '한국어',
+        value: 'ko'
+      }, {
+        label: 'English',
+        value: 'en'
+      }]} onChange={(value: string) => {
+        const uiLanguage = value === 'en' ? 'en' : 'ko';
+        isDirty.current = true;
+        setCurrentUiLanguage(uiLanguage);
+        setShowSubmenu(null);
+        setTabsHidden(false);
+        updateSettingsForSource('userSettings', {
+          uiLanguage
+        });
+        setSettingsData(prev => ({
+          ...prev,
+          uiLanguage
+        }));
       }} />
           <Text dimColor>
             <Byline>

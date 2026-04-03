@@ -719,6 +719,7 @@ export function REPL({
   } = useNotifications();
   const memoryUsage = useMemoryUsage();
   const lastMemoryStatusRef = useRef<'normal' | 'high' | 'critical'>('normal');
+  const autoCompactTriggeredRef = useRef(false);
 
   useEffect(() => {
     const status = memoryUsage?.status ?? 'normal';
@@ -728,6 +729,7 @@ export function REPL({
     lastMemoryStatusRef.current = status;
 
     if (status === 'normal') {
+      autoCompactTriggeredRef.current = false;
       removeNotification('memory-usage');
       return;
     }
@@ -743,6 +745,45 @@ export function REPL({
       timeoutMs: status === 'critical' ? 12000 : 8000,
     });
   }, [addNotification, memoryUsage, removeNotification]);
+
+  useEffect(() => {
+    if (isRemoteSession) {
+      return;
+    }
+    if (memoryUsage?.status !== 'critical') {
+      return;
+    }
+    if (autoCompactTriggeredRef.current) {
+      return;
+    }
+    if (queryGuard.isActive || isExternalLoading) {
+      return;
+    }
+
+    autoCompactTriggeredRef.current = true;
+    addNotification({
+      key: 'memory-auto-compact',
+      text: 'Critical memory usage detected. Running /compact automatically.',
+      color: 'warning',
+      priority: 'immediate',
+      timeoutMs: 12000,
+    });
+    skipIdleCheckRef.current = true;
+    void onSubmitRef.current('/compact', {
+      setCursorOffset: () => { },
+      clearBuffer: () => { },
+      resetHistory: () => { }
+    }).catch(error => {
+      autoCompactTriggeredRef.current = false;
+      addNotification({
+        key: 'memory-auto-compact-failed',
+        text: `Automatic /compact failed: ${error instanceof Error ? error.message : String(error)}`,
+        color: 'error',
+        priority: 'immediate',
+        timeoutMs: 12000,
+      });
+    });
+  }, [addNotification, isExternalLoading, isRemoteSession, memoryUsage, queryGuard]);
 
   // eslint-disable-next-line prefer-const
   let trySuggestBgPRIntercept = SUGGEST_BG_PR_NOOP;

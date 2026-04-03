@@ -3866,10 +3866,10 @@ export async function doesMessageExistInSession(
   return messageSet.has(messageUuid)
 }
 
-export async function getLastSessionLog(
+async function buildSessionLogFromFile(
   sessionId: UUID,
+  sessionFile: string,
 ): Promise<LogOption | null> {
-  // Single read: load all session data at once instead of reading the file twice
   const {
     messages,
     summaries,
@@ -3882,13 +3882,8 @@ export async function getLastSessionLog(
     contentReplacements,
     contextCollapseCommits,
     contextCollapseSnapshot,
-  } = await loadSessionFile(sessionId)
+  } = await loadTranscriptFile(sessionFile)
   if (messages.size === 0) return null
-  // Prime getSessionMessages cache so recordTranscript (called after REPL
-  // mount on --resume) skips a second full file load. -170~227ms on large sessions.
-  // Guard: only prime if cache is empty. Mid-session callers (e.g. IssueFeedback)
-  // may call getLastSessionLog on the current session — overwriting a live cache
-  // with a stale disk snapshot would lose unflushed UUIDs and break dedup.
   if (!getSessionMessages.cache.has(sessionId)) {
     getSessionMessages.cache.set(
       sessionId,
@@ -3896,11 +3891,9 @@ export async function getLastSessionLog(
     )
   }
 
-  // Find the most recent non-sidechain message
   const lastMessage = findLatestMessage(messages.values(), m => !m.isSidechain)
   if (!lastMessage) return null
 
-  // Build the transcript chain from the last message
   const transcript = buildConversationChain(messages, lastMessage)
 
   const summary = summaries.get(lastMessage.uuid)
@@ -3915,7 +3908,7 @@ export async function getLastSessionLog(
       customTitle,
       buildFileHistorySnapshotChain(fileHistorySnapshots, transcript),
       tag,
-      getTranscriptPathForSession(sessionId),
+      sessionFile,
       buildAttributionSnapshotChain(attributionSnapshots, transcript),
       agentSetting,
       contentReplacements.get(sessionId) ?? [],
@@ -3929,6 +3922,68 @@ export async function getLastSessionLog(
         ? contextCollapseSnapshot
         : undefined,
   }
+}
+
+export async function getLastSessionLog(
+  sessionId: UUID,
+): Promise<LogOption | null> {
+  // Single read: load all session data at once instead of reading the file twice
+  const sessionFile = join(
+    getSessionProjectDir() ?? getProjectDir(getOriginalCwd()),
+    `${sessionId}.jsonl`,
+  )
+  return buildSessionLogFromFile(sessionId, sessionFile)
+}
+
+export async function getLastSessionLogFromAllProjects(
+  sessionId: UUID,
+): Promise<LogOption | null> {
+  const projectsDir = getProjectsDir()
+
+  let dirents: Dirent[]
+  try {
+    dirents = await readdir(projectsDir, { withFileTypes: true })
+  } catch {
+    return null
+  }
+
+  for (const dirent of dirents) {
+    if (!dirent.isDirectory()) continue
+    const sessionFile = join(projectsDir, dirent.name, `${sessionId}.jsonl`)
+    try {
+      const loaded = await buildSessionLogFromFile(sessionId, sessionFile)
+      if (loaded) {
+        return loaded
+      }
+    } catch (error) {
+      if (isFsInaccessible(error)) {
+        continue
+      }
+      throw error
+    }
+  }
+
+  return null
+}
+
+async function loadSessionFile(sessionId: UUID): Promise<{
+  messages: Map<UUID, TranscriptMessage>
+  summaries: Map<UUID, string>
+  customTitles: Map<UUID, string>
+  tags: Map<UUID, string>
+  agentSettings: Map<UUID, string>
+  worktreeStates: Map<UUID, PersistedWorktreeSession | null>
+  fileHistorySnapshots: Map<UUID, FileHistorySnapshotMessage>
+  attributionSnapshots: Map<UUID, AttributionSnapshotMessage>
+  contentReplacements: Map<UUID, ContentReplacementRecord[]>
+  contextCollapseCommits: ContextCollapseCommitEntry[]
+  contextCollapseSnapshot: ContextCollapseSnapshotEntry | undefined
+}> {
+  const sessionFile = join(
+    getSessionProjectDir() ?? getProjectDir(getOriginalCwd()),
+    `${sessionId}.jsonl`,
+  )
+  return loadTranscriptFile(sessionFile)
 }
 
 /**

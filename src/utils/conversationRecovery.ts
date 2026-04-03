@@ -40,6 +40,7 @@ import {
   buildConversationChain,
   checkResumeConsistency,
   getLastSessionLog,
+  getLastSessionLogFromAllProjects,
   getSessionIdFromLog,
   isLiteLog,
   loadFullLog,
@@ -520,6 +521,9 @@ export async function loadConversationForResume(
     } else if (typeof source === 'string') {
       // Load specific session by ID
       log = await getLastSessionLog(source as UUID)
+      if (!log) {
+        log = await getLastSessionLogFromAllProjects(source as UUID)
+      }
       sessionId = source as UUID
     } else {
       // Already have a LogOption
